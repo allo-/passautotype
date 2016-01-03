@@ -50,57 +50,76 @@ Usage:
 ======
 
 To use passautotype to type the correct password in a window, you need to
-add the correct entries to you pass database.
+add the password entries with the corresponding window title.
 
 - WINDOWTITLE is the part of the window title, that should be matched to use
 the corresponding password. For example you could use "Testwebsite" to match
 the title "This is my Testwebsite". You can use spaces and other special
-characters, but don't forget to escape them for your shell
+characters, but don't forget to escape them for your shell.
 (pass handles them without problems, even chars like "|")
 - ACCOUNT is a name you choose for the stored account, which will be used
-  in the account chooser when you have multiple accounts for a site.
+  in the account chooser, when you have multiple accounts for a site.
 
 Password entries:
 -----------------
-pass insert 'autotype/ACCOUNT/WINDOWTITLE'
+$ pass insert 'autotype/WINDOWTITLE/ACCOUNT'
 
 Username / Password entries:
 ----------------------------
 For the Username:
-pass insert 'autotype/WINDOWTITLE/ACCOUNT/username'
+$ pass insert 'autotype/WINDOWTITLE/ACCOUNT/username'
 For the Password:
-pass insert 'autotype/WINDOWTITLE/ACCOUNT/password'
+$ pass insert 'autotype/WINDOWTITLE/ACCOUNT/password'
 
-Custom Sequence:
-----------------
+Custom Sequences:
+-----------------
 Username:
-pass insert 'autotype/WINDOWTITLE/ACCOUNT/username'
+$ pass insert 'autotype/WINDOWTITLE/ACCOUNT/username'
 Password:
-pass insert 'autotype/WINDOWTITLE/ACCOUNT/password'
+$ pass insert 'autotype/WINDOWTITLE/ACCOUNT/password'
 Sequence:
-pass insert -m 'autotype/WINDOWTITLE/ACCOUNT/sequence'
+$ pass insert -m 'autotype/WINDOWTITLE/ACCOUNT/sequence'
 
 In the sequence, you can use the following keywords:
-- "USER": type the username.
-- "PASS": type the password.
-- "KEY somekey": press a key.
+- "USER": Type the username.
+- "PASS": Type the password.
+- "KEY somekey": Press a key.
 - "TEXT some text": Type some text
 - "SLEEP X": Sleep for X seconds (float value)
 
-The key names are in the syntax of xdotool and depend on captialization.
+The key names are in the syntax of xdotool and need correct capitalization.
 Some examples are: Tab, Return, BackSpace, ctrl+a, shift+Tab.
 
 Example: Login on a site asking for username and password on different pages:
 USER
-KEY Enter
+KEY Return
 SLEEP 0.5
 PASS
-KEY Enter
+KEY Return
 
-You can use your usual pass database by creating symlinks like this:
-$ mkdir -p ~/.password-store/autotype/site/default/
-$ ln -s ~/.password-store/user@site.gpg ~/.password-store/autotype/sitetitle/default/password.gpg
-$ pass insert -e autotype/sitetitle/default/username # enter the corresponding username
+The default username/password behaviour is the sequence:
+USER
+KEY Tab
+PASS
+Key Return
+
+Using the normal pass database with autotype
+--------------------------------------------
+
+You can use your usual pass database by creating symlinks.
+This allows you to store the password at a easy to find location like
+"email/me@mymail" and autotype to find it for the window title "My cool Mail"
+
+Example (do not forget the quotes):
+
+$ mkdir -p "$HOME/.password-store/autotype/sitetitle/default/"
+$ ln -s "$HOME/.password-store/myemail/user@site.gpg"
+  "$HOME/.password-store/autotype/My cool Mail/default/password.gpg"
+# enter the corresponding username
+$ pass insert -e "autotype/My cool Mail/default/username"
+
+# only if you need a custom sequence
+$ pass insert -m "autotype/My cool Mail/default/sequence"
 """
     sys.exit(0)
 
