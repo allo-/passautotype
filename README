@@ -9,5 +9,5 @@ For usage information run passautotype.py --help
 Dependencies
 ------------
 
-- kdialog
+- zenity or kdialog (change the ZENITY constant in the code)
 - xdotool

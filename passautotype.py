@@ -22,6 +22,9 @@ import os, sys
 from glob import glob1
 
 
+ZENITY = True
+
+
 def run_piped(cmd_list):
     """
         Run a command with arguments in the form
@@ -156,8 +159,21 @@ else:
             type_text = "Username and Password"
         elif item[0] == "sequence":
             type_text = "Custom Sequence"
-        entries.append(item[1] + " | " + item[2] + " (" + type_text + ")")
-    choice=run_piped(["kdialog", "--geometry", "500x300", "--menu", "Multiple Choices:"] + entries)
+        if not ZENITY:
+            entries.append(item[1] + " | " + item[2] + " (" + type_text + ")")
+        else:
+            entries += [item[1], item[2], type_text]
+    if not ZENITY:
+        choice=run_piped(["kdialog", "--geometry", "500x300", "--menu", "Multiple Choices:"] + entries)
+    else:
+        choice=run_piped(["zenity", "--list", "--text", "Multiple Choices:",
+            "--column", "Index",
+            "--column", "Account",
+            "--column", "Title",
+            "--column", "Type",
+            "--hide-column", "1",
+            "--width", "500",
+            "--height", "300"] + entries)
 
 if choice is not None:
     item = choices[int(choice)]
