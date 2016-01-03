@@ -30,7 +30,7 @@ def run_piped(cmd_list):
         Run a command with arguments in the form
         ["command", "arg1", "arg2", ...] and return stdout
     """
-    return subprocess.Popen(cmd_list, stdout=subprocess.PIPE).communicate()[0]
+    return subprocess.Popen(cmd_list, stdout=subprocess.PIPE).communicate()[0].strip()
 
 
 def is_username_password_dir(dir):
