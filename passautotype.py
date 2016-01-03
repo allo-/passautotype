@@ -118,22 +118,33 @@ for title in autotype_titles:
     entries = glob1(title_dir, "*")
     for entry in entries:
         if entry.endswith(".gpg"):
-            password_matches.append(title + "/" + entry[:-4])
+            password_matches.append([
+                entry[:-4],
+                title
+            ])
         elif os.path.isdir(title_dir + "/" + entry):
             entry_dir = title_dir + "/" + entry
             if is_sequence_dir(entry_dir):
-                sequence_matches.append(title + "/" + entry)
+                sequence_matches.append([
+                    entry,
+                    title
+                ])
             elif is_username_password_dir(entry_dir):
-                user_password_matches.append(title + "/" + entry)
+                user_password_matches.append([
+                    entry,
+                    title
+                ])
 
 
-choices  = [("password", match) for match in password_matches]
-choices += [("user_password", match) for match in user_password_matches]
-choices += [("sequence", match) for match in sequence_matches]
+choices  = [["password"] + match for match in password_matches]
+choices += [["user_password"] + match for match in user_password_matches]
+choices += [["sequence"] + match for match in sequence_matches]
 choices.sort(key=lambda x: x[1])
 
 choice = None 
-if len(choices) == 1:
+if len(choices) == 0:
+    sys.exit(1)
+elif len(choices) == 1:
     choice = 0
 else:
     entries = []
@@ -145,11 +156,13 @@ else:
             type_text = "Username and Password"
         elif item[0] == "sequence":
             type_text = "Custom Sequence"
-        entries.append(item[1] + " (" + type_text + ")")
+        entries.append(item[1] + " | " + item[2] + " (" + type_text + ")")
     choice=run_piped(["kdialog", "--geometry", "500x300", "--menu", "Multiple Choices:"] + entries)
 
 if choice is not None:
-    type, entry = choices[int(choice)]
+    item = choices[int(choice)]
+    type = item[0]
+    entry = item[2] + "/" + item[1]
     if type == "password":
         password = run_piped(["pass", "show", "autotype/" + entry])
         subprocess.call(["xdotool", "type", password])
