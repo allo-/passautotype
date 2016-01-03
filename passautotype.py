@@ -187,9 +187,9 @@ if choice is not None:
             ["pass", "show", "autotype/" + entry + "/username"])
         password = run_piped(
             ["pass", "show", "autotype/" + entry + "/password"])
-        subprocess.call(["xdotool", "type", username])
+        subprocess.call(["xdotool", "type", "--clearmodifiers", username])
         subprocess.call(["xdotool", "key", "--clearmodifiers", "Tab"])
-        subprocess.call(["xdotool", "type", password])
+        subprocess.call(["xdotool", "type", "--clearmodifiers", password])
         subprocess.call(["xdotool", "key", "--clearmodifiers", "Return"])
     elif type == "sequence":
         username = run_piped(
@@ -200,15 +200,15 @@ if choice is not None:
             ["pass", "show", "autotype/" + entry + "/sequence"])
         for line in sequence.split("\n"):
             if line == "USER":
-                subprocess.call(["xdotool", "type", username])
+                subprocess.call(["xdotool", "type", "--clearmodifiers", username])
             elif line == "PASS":
-                subprocess.call(["xdotool", "type", password])
+                subprocess.call(["xdotool", "type", "--clearmodifiers", password])
             elif line.startswith("KEY "):
                 key = line.split(" ", 1)[1]
                 subprocess.call(["xdotool", "key", "--clearmodifiers", key])
             elif line.startswith("TEXT "):
                 text = line.split(" ", 1)[1]
-                subprocess.call(["xdotool", "type", text])
+                subprocess.call(["xdotool", "type", "--clearmodifiers", text])
             elif line.startswith("SLEEP "):
                 delay = float(line.split(" ", 1)[1])
                 sleep(delay)
