@@ -1,0 +1,13 @@
+passautotype
+============
+
+Usage
+-----
+
+For usage information run passautotype.py --help
+
+Dependencies
+------------
+
+- kdialog
+- xdotool
