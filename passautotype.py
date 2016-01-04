@@ -57,8 +57,12 @@ the corresponding password. For example you could use "Testwebsite" to match
 the title "This is my Testwebsite". You can use spaces and other special
 characters, but don't forget to escape them for your shell.
 (pass handles them without problems, even chars like "|")
+
 - ACCOUNT is a name you choose for the stored account, which will be used
   in the account chooser, when you have multiple accounts for a site.
+  This is optional at all places, if you (only) want to add a default account,
+  you can omit the "ACCOUNT/" part when inserting the password.
+  ACCOUNT may not be "username", "password" or "sequence"
 
 Password entries:
 -----------------
@@ -108,7 +112,8 @@ Using the normal pass database with autotype
 
 You can use your usual pass database by creating symlinks.
 This allows you to store the password at a easy to find location like
-"email/me@mymail" and autotype to find it for the window title "My cool Mail"
+"email/me@mymail" and allows autotype to find it for the
+window title "My cool Mail".
 
 Example (do not forget the quotes):
 
@@ -140,6 +145,9 @@ for title in autotype_titles:
     entries = glob1(title_dir, "*")
     for entry in entries:
         if entry.endswith(".gpg"):
+            if entry in ["username.gpg", "password.gpg", "sequence.gpg"]:
+                # default account
+                continue
             password_matches.append([
                 entry[:-4],
                 title
@@ -156,12 +164,31 @@ for title in autotype_titles:
                     entry,
                     title
                 ])
+    # default account
+    if is_sequence_dir(title_dir):
+        sequence_matches.append([
+            "",
+            title
+        ])
+    elif is_username_password_dir(title_dir):
+        user_password_matches.append([
+            "",
+            title
+        ])
+    elif os.path.isfile(title_dir + "/" + "password.gpg"):
+        password_matches.append([
+            "",
+            title
+        ])
+
 
 
 choices  = [["password"] + match for match in password_matches]
 choices += [["user_password"] + match for match in user_password_matches]
 choices += [["sequence"] + match for match in sequence_matches]
 choices.sort(key=lambda x: x[1])
+
+print choices
 
 choice = None 
 if len(choices) == 0:
@@ -198,6 +225,9 @@ if choice is not None:
     item = choices[int(choice)]
     type = item[0]
     entry = item[2] + "/" + item[1]
+    # wait a moment to avoid triggering shortcuts, when the user invoces the script via shortcut
+    # (i.e. ctrl+shift+p and the script triggers other shortcuts with ctrl+shift)
+    sleep(0.3)
     if type == "password":
         password = run_piped(["pass", "show", "autotype/" + entry])
         subprocess.call(["xdotool", "type", password])
