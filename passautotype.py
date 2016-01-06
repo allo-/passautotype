@@ -18,11 +18,13 @@
 
 import subprocess
 from time import sleep
-import os, sys
+import os
+import sys
 from glob import glob1
 
 
 ZENITY = True
+WAIT_TIME = 0.3  # time to wait before starting to type
 
 
 HELP_TEXT = """
@@ -125,100 +127,63 @@ def run_piped(cmd_list):
         Run a command with arguments in the form
         ["command", "arg1", "arg2", ...] and return stdout
     """
-    return subprocess.Popen(cmd_list, stdout=subprocess.PIPE).communicate()[0].strip()
+    return subprocess.Popen(
+        cmd_list, stdout=subprocess.PIPE).communicate()[0].strip()
 
 
 def is_username_password_dir(dir):
     return os.path.isfile(dir + "/username.gpg") \
-    and os.path.isfile(dir + "/password.gpg") \
-    and not os.path.isfile(dir + "/sequence.gpg")
+        and os.path.isfile(dir + "/password.gpg") \
+        and not os.path.isfile(dir + "/sequence.gpg")
 
 
 def is_sequence_dir(dir):
     return os.path.isfile(dir + "/username.gpg") \
-    and os.path.isfile(dir + "/password.gpg") \
-    and os.path.isfile(dir + "/sequence.gpg")
-
-if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--type"):
-    # default behaviour
-    pass
-elif len(sys.argv) > 1 and sys.argv[1] == "--help-add":
-    print HELP_TEXT_ADD
-    sys.exit(0)
-elif len(sys.argv) > 1 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
-    print HELP_TEXT
-    sys.exit(0)
-else:
-    print "run \"{0} --help\" for usage information".format(
-        os.path.basename(sys.argv[0]))
-    sys.exit(0)
+        and os.path.isfile(dir + "/password.gpg") \
+        and os.path.isfile(dir + "/sequence.gpg")
 
 
-autotype_dir = os.environ["HOME"] + "/.password-store/autotype"
+def get_choices(autotype_dir, autotype_titles):
+    choices = []
+    for title in autotype_titles:
+        title_dir = autotype_dir + "/" + title
+        entries = glob1(title_dir, "*")  # autotype/title/account
+        entries += [""]  # autotype/title (default account)
+        for entry in entries:
+            account_name = None
+            account_type = None
+            if entry.endswith(".gpg"):
+                if entry in ["username.gpg", "password.gpg", "sequence.gpg"]:
+                    # no account file, but part of the default account folder
+                    continue
+                account_type = "password"
+                account_name = entry[:-4]
+            elif os.path.isdir(title_dir + "/" + entry):
+                entry_dir = title_dir + "/" + entry
+                account_name = entry
+                if is_sequence_dir(entry_dir):
+                    account_type = "sequence"
+                elif is_username_password_dir(entry_dir):
+                    account_type = "user_password"
 
-window_id = run_piped(["xdotool", "getactivewindow"])
-window_name = run_piped(["xdotool", "getwindowname", window_id])
-
-autotype_titles = [title for title in glob1(autotype_dir, "*")
-                   if title.lower() in window_name.lower()]
-
-password_matches = []
-user_password_matches = []
-sequence_matches = []
-for title in autotype_titles:
-    title_dir = autotype_dir + "/" + title
-    entries = glob1(title_dir, "*")
-    for entry in entries:
-        if entry.endswith(".gpg"):
-            if entry in ["username.gpg", "password.gpg", "sequence.gpg"]:
-                # default account
-                continue
-            password_matches.append([
-                entry[:-4],
-                title
-            ])
-        elif os.path.isdir(title_dir + "/" + entry):
-            entry_dir = title_dir + "/" + entry
-            if is_sequence_dir(entry_dir):
-                sequence_matches.append([
-                    entry,
+            if account_type is not None and account_name is not None:
+                choices.append([
+                    account_type,
+                    account_name,
                     title
                 ])
-            elif is_username_password_dir(entry_dir):
-                user_password_matches.append([
-                    entry,
-                    title
-                ])
-    # default account
-    if is_sequence_dir(title_dir):
-        sequence_matches.append([
-            "",
-            title
-        ])
-    elif is_username_password_dir(title_dir):
-        user_password_matches.append([
-            "",
-            title
-        ])
-    elif os.path.isfile(title_dir + "/" + "password.gpg"):
-        password_matches.append([
-            "",
-            title
-        ])
+
+    choices.sort(key=lambda x: x[1])
+    return choices
 
 
+def choose_entry(choices):
+    if len(choices) == 0:
+        return None
+    if len(choices) == 1:
+        # use the only one
+        return choices[0]
 
-choices  = [["password"] + match for match in password_matches]
-choices += [["user_password"] + match for match in user_password_matches]
-choices += [["sequence"] + match for match in sequence_matches]
-choices.sort(key=lambda x: x[1])
-
-choice = None 
-if len(choices) == 0:
-    sys.exit(1)
-elif len(choices) == 1:
-    choice = 0
-else:
     entries = []
     for index, item in enumerate(choices):
         entries.append(str(index))
@@ -229,28 +194,50 @@ else:
         elif item[0] == "sequence":
             type_text = "Custom Sequence"
         if not ZENITY:
-            entries.append(item[1] + " | " + item[2] + " (" + type_text + ")")
+            entries.append(
+                item[1] + " | " + item[2] + " (" + type_text + ")")
         else:
             entries += [item[1], item[2], type_text]
     if not ZENITY:
-        choice=run_piped(["kdialog", "--geometry", "500x300", "--menu", "Multiple Choices:"] + entries)
+        choice = run_piped(["kdialog", "--geometry", "500x300",
+                            "--menu", "Multiple Choices:"] + entries)
     else:
-        choice=run_piped(["zenity", "--list", "--text", "Multiple Choices:",
-            "--column", "Index",
-            "--column", "Account",
-            "--column", "Title",
-            "--column", "Type",
-            "--hide-column", "1",
-            "--width", "500",
-            "--height", "300"] + entries)
+        choice = run_piped(["zenity", "--list",
+                            "--text", "Multiple Choices:",
+                            "--column", "Index",
+                            "--column", "Account",
+                            "--column", "Title",
+                            "--column", "Type",
+                            "--hide-column", "1",
+                            "--width", "500",
+                            "--height", "300"] + entries)
+    if len(choice):
+        return choices[int(choice)]
+    else:
+        return None
 
-if choice is not None:
-    item = choices[int(choice)]
-    type = item[0]
-    entry = item[2] + "/" + item[1]
-    # wait a moment to avoid triggering shortcuts, when the user invoces the script via shortcut
-    # (i.e. ctrl+shift+p and the script triggers other shortcuts with ctrl+shift)
-    sleep(0.3)
+
+def autotype():
+    autotype_dir = os.environ["HOME"] + "/.password-store/autotype"
+    window_id = run_piped(["xdotool", "getactivewindow"])
+    window_name = run_piped(["xdotool", "getwindowname", window_id])
+    autotype_titles = [title for title in glob1(autotype_dir, "*")
+                       if title.lower() in window_name.lower()]
+
+    choices = get_choices(autotype_dir, autotype_titles)
+    choice = choose_entry(choices)
+
+    if choice is None:
+        # no choices or dialog canceled
+        sys.exit(0)
+
+    type = choice[0]
+    entry = choice[2] + "/" + choice[1]
+
+    # wait a moment to avoid triggering shortcuts, when the user starts
+    # the script via shortcut (i.e. ctrl+shift+p and the script triggers
+    # other shortcuts with ctrl+shift)
+    sleep(WAIT_TIME)
     if type == "password":
         password = run_piped(["pass", "show", "autotype/" + entry])
         subprocess.call(["xdotool", "type", password])
@@ -272,9 +259,11 @@ if choice is not None:
             ["pass", "show", "autotype/" + entry + "/sequence"])
         for line in sequence.split("\n"):
             if line == "USER":
-                subprocess.call(["xdotool", "type", "--clearmodifiers", username])
+                subprocess.call(["xdotool", "type",
+                                 "--clearmodifiers", username])
             elif line == "PASS":
-                subprocess.call(["xdotool", "type", "--clearmodifiers", password])
+                subprocess.call(["xdotool", "type",
+                                 "--clearmodifiers", password])
             elif line.startswith("KEY "):
                 key = line.split(" ", 1)[1]
                 subprocess.call(["xdotool", "key", "--clearmodifiers", key])
@@ -284,3 +273,18 @@ if choice is not None:
             elif line.startswith("SLEEP "):
                 delay = float(line.split(" ", 1)[1])
                 sleep(delay)
+
+
+# Commandline argument parsing
+if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--type"):
+    autotype()
+elif len(sys.argv) > 1 and sys.argv[1] == "--help-add":
+    print HELP_TEXT_ADD
+    sys.exit(0)
+elif len(sys.argv) > 1 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
+    print HELP_TEXT
+    sys.exit(0)
+else:
+    print "run \"{0} --help\" for usage information".format(
+        os.path.basename(sys.argv[0]))
+    sys.exit(0)
