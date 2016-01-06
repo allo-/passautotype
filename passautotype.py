@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# (c) 2016 Alexander Schier
+# (c) 2016 Alexander Schier <allo -at- laxu.de>
 
 
 import subprocess
@@ -25,29 +25,21 @@ from glob import glob1
 ZENITY = True
 
 
-def run_piped(cmd_list):
-    """
-        Run a command with arguments in the form
-        ["command", "arg1", "arg2", ...] and return stdout
-    """
-    return subprocess.Popen(cmd_list, stdout=subprocess.PIPE).communicate()[0].strip()
-
-
-def is_username_password_dir(dir):
-    return os.path.isfile(dir + "/username.gpg") \
-    and os.path.isfile(dir + "/password.gpg") \
-    and not os.path.isfile(dir + "/sequence.gpg")
-
-
-def is_sequence_dir(dir):
-    return os.path.isfile(dir + "/username.gpg") \
-    and os.path.isfile(dir + "/password.gpg") \
-    and os.path.isfile(dir + "/sequence.gpg")
-
-if len(sys.argv) > 1 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
-    print """
+HELP_TEXT = """
 Usage:
 ======
+
+-t --type: Type the password for the current window.
+--help-add: Show how to add autotype entries to your pass database.
+
+To be able to run the command while the correct window has the focus,
+you should add a hotkey for "passautotype -t" in the shortcut settings of
+your desktop environment or window manager.
+"""
+
+HELP_TEXT_ADD = """
+Adding Autotype Entries
+=======================
 
 To use passautotype to type the correct password in a window, you need to
 add the password entries with the corresponding window title.
@@ -126,6 +118,39 @@ $ pass insert -e "autotype/My cool Mail/default/username"
 # only if you need a custom sequence
 $ pass insert -m "autotype/My cool Mail/default/sequence"
 """
+
+
+def run_piped(cmd_list):
+    """
+        Run a command with arguments in the form
+        ["command", "arg1", "arg2", ...] and return stdout
+    """
+    return subprocess.Popen(cmd_list, stdout=subprocess.PIPE).communicate()[0].strip()
+
+
+def is_username_password_dir(dir):
+    return os.path.isfile(dir + "/username.gpg") \
+    and os.path.isfile(dir + "/password.gpg") \
+    and not os.path.isfile(dir + "/sequence.gpg")
+
+
+def is_sequence_dir(dir):
+    return os.path.isfile(dir + "/username.gpg") \
+    and os.path.isfile(dir + "/password.gpg") \
+    and os.path.isfile(dir + "/sequence.gpg")
+
+if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--type"):
+    # default behaviour
+    pass
+elif len(sys.argv) > 1 and sys.argv[1] == "--help-add":
+    print HELP_TEXT_ADD
+    sys.exit(0)
+elif len(sys.argv) > 1 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
+    print HELP_TEXT
+    sys.exit(0)
+else:
+    print "run \"{0} --help\" for usage information".format(
+        os.path.basename(sys.argv[0]))
     sys.exit(0)
 
 
@@ -187,8 +212,6 @@ choices  = [["password"] + match for match in password_matches]
 choices += [["user_password"] + match for match in user_password_matches]
 choices += [["sequence"] + match for match in sequence_matches]
 choices.sort(key=lambda x: x[1])
-
-print choices
 
 choice = None 
 if len(choices) == 0:
