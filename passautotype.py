@@ -31,8 +31,13 @@ HELP_TEXT = """
 Usage:
 ======
 
--t --type: Type the password for the current window.
+-h, --help: This help.
 --help-add: Show how to add autotype entries to your pass database.
+--help-symlink: Show how to use existing entries for autotype.
+--help-sequence: Description of the commands in a custom sequence.
+-t --type: Type the password for the current window.
+-s, --symlink PASSWORDENTRY WINDOWTITLE[/ACCOUNT]: create a autotype
+              symlink. See --help-symlink
 
 To be able to run the command while the correct window has the focus,
 you should add a hotkey for "passautotype -t" in the shortcut settings of
@@ -78,14 +83,45 @@ $ pass insert 'autotype/WINDOWTITLE/ACCOUNT/password'
 Sequence:
 $ pass insert -m 'autotype/WINDOWTITLE/ACCOUNT/sequence'
 
-In the sequence, you can use the following keywords:
+see --help-sequence for how to use custom sequences.
+"""
+
+HELP_TEXT_SYMLINK="""
+Using the normal pass database with autotype
+--------------------------------------------
+
+You can use your usual pass database by creating symlinks
+for the autotype entries.
+
+To use an entry as default account for a window title:
+$ passautotype --symlink ENTRY WINDOWTITLE
+
+To add multiple accounts for the window title:
+$ passautotype --symlink ENTRY WINDOWTITLE/ACCOUNT
+
+You will be prompted to add an optional username and
+an optional custom sequence (see --help-sequence)
+
+This allows you to store the password at a easy to find location like
+"email/me@mymail" and allows autotype to find it for the
+window title "My cool Mail".
+
+Example (do not forget the quotes):
+$ passautotype --symlink "email/me@mymail" "My cool Mail/personalaccount"
+"""
+
+HELP_TEXT_SEQUENCE="""
+Custom Sequences
+----------------
+
+When adding a custom sequence, you you use the following keywords:
 - "USER": Type the username.
 - "PASS": Type the password.
 - "KEY somekey": Press a key.
 - "TEXT some text": Type some text
 - "SLEEP X": Sleep for X seconds (float value)
 
-The key names are in the syntax of xdotool and need correct capitalization.
+The key names are in the syntax of "xdotool" and need correct capitalization.
 Some examples are: Tab, Return, BackSpace, ctrl+a, shift+Tab.
 
 Example: Login on a site asking for username and password on different pages:
@@ -100,25 +136,6 @@ USER
 KEY Tab
 PASS
 Key Return
-
-Using the normal pass database with autotype
---------------------------------------------
-
-You can use your usual pass database by creating symlinks.
-This allows you to store the password at a easy to find location like
-"email/me@mymail" and allows autotype to find it for the
-window title "My cool Mail".
-
-Example (do not forget the quotes):
-
-$ mkdir -p "$HOME/.password-store/autotype/sitetitle/default/"
-$ ln -s "$HOME/.password-store/myemail/user@site.gpg"
-  "$HOME/.password-store/autotype/My cool Mail/default/password.gpg"
-# enter the corresponding username
-$ pass insert -e "autotype/My cool Mail/default/username"
-
-# only if you need a custom sequence
-$ pass insert -m "autotype/My cool Mail/default/sequence"
 """
 
 
@@ -274,14 +291,54 @@ def autotype():
                 delay = float(line.split(" ", 1)[1])
                 sleep(delay)
 
+def symlink(password_file, autotype_dir):
+    password_path = os.environ["HOME"] + "/.password-store/" + password_file + ".gpg"
+    autotype_path = os.environ["HOME"] + "/.password-store/autotype/" + autotype_dir
+    if not os.path.isfile(password_path):
+        print 'Password "{0}" does not exist'.format(password_file)
+        sys.exit(1)
+    elif os.path.lexists(autotype_path + "/password.gpg"):
+        print 'Autotype for "{0}" already exists'.format(autotype_dir)
+        title_folder = autotype_dir.split("/", 1)[0]
+        print 'You can add another account at "{0}/ACCOUNTNAME" using a new account name.'.format(title_folder)
+        sys.exit(1)
+    elif os.path.lexists(autotype_path) and not os.path.isdir(autotype_path):
+        # autotype_path exists and is no directory
+        print 'Error, autotype directory "{0}" already exists'.format(autotype_dir)
+        sys.exit(1)
+
+    if not os.path.lexists(autotype_path):
+        os.makedirs(autotype_path)
+    depth = len(autotype_dir.split("/"))
+    os.symlink("../" * ( depth + 1) + password_file + ".gpg", autotype_path + "/password.gpg")
+    subprocess.call(["pass", "git", "add", autotype_path + "/password.gpg"])
+    subprocess.call(["pass", "git", "commit", "-m",
+        "Add autotype symlink for {name} -> autotype/{autotype}/password to store.".format(name=password_file, autotype=autotype_dir),
+        autotype_path + "/password.gpg"])
+    print
+    if raw_input("Do you want to enter a username? ([y]/n): ") != "n":
+        subprocess.call(["pass", "insert", "-e", "autotype/" + autotype_dir + "/username"])
+    print
+    if raw_input("Do you want to use a custom sequence? (y/[n]): ") == "y":
+        subprocess.call(["pass", "insert", "-m", "autotype/" + autotype_dir + "/sequence"])
+
+
 
 # Commandline argument parsing
-if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--type"):
+if len(sys.argv) == 2 and (sys.argv[1] == "-t" or sys.argv[1] == "--type"):
     autotype()
-elif len(sys.argv) > 1 and sys.argv[1] == "--help-add":
+if len(sys.argv) == 4 and (sys.argv[1] == "-s" or sys.argv[1] == "--symlink"):
+    symlink(sys.argv[2], sys.argv[3])
+elif len(sys.argv) == 2 and sys.argv[1] == "--help-add":
     print HELP_TEXT_ADD
     sys.exit(0)
-elif len(sys.argv) > 1 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
+elif len(sys.argv) == 2 and sys.argv[1] == "--help-symlink":
+    print HELP_TEXT_SYMLINK
+    sys.exit(0)
+elif len(sys.argv) == 2 and sys.argv[1] == "--help-sequence":
+    print HELP_TEXT_SEQUENCE
+    sys.exit(0)
+elif len(sys.argv) == 2 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
     print HELP_TEXT
     sys.exit(0)
 else:
