@@ -311,10 +311,11 @@ def symlink(password_file, autotype_dir):
         os.makedirs(autotype_path)
     depth = len(autotype_dir.split("/"))
     os.symlink("../" * ( depth + 1) + password_file + ".gpg", autotype_path + "/password.gpg")
-    subprocess.call(["pass", "git", "add", autotype_path + "/password.gpg"])
-    subprocess.call(["pass", "git", "commit", "-m",
-        "Add autotype symlink for {name} -> autotype/{autotype}/password to store.".format(name=password_file, autotype=autotype_dir),
-        autotype_path + "/password.gpg"])
+    if os.path.lexists(os.environ["HOME"] + "/.password-store/.git"):
+        subprocess.call(["pass", "git", "add", autotype_path + "/password.gpg"])
+        subprocess.call(["pass", "git", "commit", "-m",
+            "Add autotype symlink for {name} -> autotype/{autotype}/password to store.".format(name=password_file, autotype=autotype_dir),
+            autotype_path + "/password.gpg"])
     print
     if raw_input("Do you want to enter a username? ([y]/n): ") != "n":
         subprocess.call(["pass", "insert", "-e", "autotype/" + autotype_dir + "/username"])
