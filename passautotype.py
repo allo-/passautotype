@@ -148,6 +148,12 @@ def run_piped(cmd_list):
         cmd_list, stdout=subprocess.PIPE).communicate()[0].strip()
 
 
+def is_password_dir(dir):
+    return not os.path.isfile(dir + "/username.gpg") \
+        and os.path.isfile(dir + "/password.gpg") \
+        and not os.path.isfile(dir + "/sequence.gpg")
+
+
 def is_username_password_dir(dir):
     return os.path.isfile(dir + "/username.gpg") \
         and os.path.isfile(dir + "/password.gpg") \
@@ -173,8 +179,6 @@ def get_choices(autotype_dir, autotype_titles):
                 if entry in ["username.gpg", "password.gpg", "sequence.gpg"]:
                     # no account file, but part of the default account folder
                     continue
-                account_type = "password"
-                account_name = entry[:-4]
             elif os.path.isdir(title_dir + "/" + entry):
                 entry_dir = title_dir + "/" + entry
                 account_name = entry
@@ -182,6 +186,8 @@ def get_choices(autotype_dir, autotype_titles):
                     account_type = "sequence"
                 elif is_username_password_dir(entry_dir):
                     account_type = "user_password"
+                elif is_password_dir(entry_dir):
+                    account_type = "password"
 
             if account_type is not None and account_name is not None:
                 choices.append([
@@ -256,40 +262,39 @@ def autotype():
     # other shortcuts with ctrl+shift)
     sleep(WAIT_TIME)
     if type == "password":
-        password = run_piped(["pass", "show", "autotype/" + entry])
+        password = run_piped(
+            ["pass", "show", "autotype/" + entry + "/password"])
         subprocess.call(["xdotool", "type", password])
-    elif type == "user_password":
-        username = run_piped(
-            ["pass", "show", "autotype/" + entry + "/username"])
-        password = run_piped(
-            ["pass", "show", "autotype/" + entry + "/password"])
-        subprocess.call(["xdotool", "type", "--clearmodifiers", username])
-        subprocess.call(["xdotool", "key", "--clearmodifiers", "Tab"])
-        subprocess.call(["xdotool", "type", "--clearmodifiers", password])
-        subprocess.call(["xdotool", "key", "--clearmodifiers", "Return"])
-    elif type == "sequence":
-        username = run_piped(
-            ["pass", "show", "autotype/" + entry + "/username"])
-        password = run_piped(
-            ["pass", "show", "autotype/" + entry + "/password"])
+        return
+
+    # username_password or sequence
+    username = run_piped(
+        ["pass", "show", "autotype/" + entry + "/username"])
+    password = run_piped(
+        ["pass", "show", "autotype/" + entry + "/password"])
+
+    if type == "sequence":
         sequence = run_piped(
             ["pass", "show", "autotype/" + entry + "/sequence"])
-        for line in sequence.split("\n"):
-            if line == "USER":
-                subprocess.call(["xdotool", "type",
-                                 "--clearmodifiers", username])
-            elif line == "PASS":
-                subprocess.call(["xdotool", "type",
-                                 "--clearmodifiers", password])
-            elif line.startswith("KEY "):
-                key = line.split(" ", 1)[1]
-                subprocess.call(["xdotool", "key", "--clearmodifiers", key])
-            elif line.startswith("TEXT "):
-                text = line.split(" ", 1)[1]
-                subprocess.call(["xdotool", "type", "--clearmodifiers", text])
-            elif line.startswith("SLEEP "):
-                delay = float(line.split(" ", 1)[1])
-                sleep(delay)
+    else:  # username and password
+        sequence = "USER\nKEY Tab\nPASS\nKEY Return"
+
+    for line in sequence.split("\n"):
+        if line == "USER":
+            subprocess.call(["xdotool", "type",
+                             "--clearmodifiers", username])
+        elif line == "PASS":
+            subprocess.call(["xdotool", "type",
+                             "--clearmodifiers", password])
+        elif line.startswith("KEY "):
+            key = line.split(" ", 1)[1]
+            subprocess.call(["xdotool", "key", "--clearmodifiers", key])
+        elif line.startswith("TEXT "):
+            text = line.split(" ", 1)[1]
+            subprocess.call(["xdotool", "type", "--clearmodifiers", text])
+        elif line.startswith("SLEEP "):
+            delay = float(line.split(" ", 1)[1])
+            sleep(delay)
 
 def symlink(password_file, autotype_dir):
     password_path = os.environ["HOME"] + "/.password-store/" + password_file + ".gpg"
