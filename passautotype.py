@@ -333,7 +333,7 @@ def symlink(password_file, autotype_dir):
 # Commandline argument parsing
 if len(sys.argv) == 2 and (sys.argv[1] == "-t" or sys.argv[1] == "--type"):
     autotype()
-if len(sys.argv) == 4 and (sys.argv[1] == "-s" or sys.argv[1] == "--symlink"):
+elif len(sys.argv) == 4 and (sys.argv[1] == "-s" or sys.argv[1] == "--symlink"):
     symlink(sys.argv[2], sys.argv[3])
 elif len(sys.argv) == 2 and sys.argv[1] == "--help-add":
     print HELP_TEXT_ADD
