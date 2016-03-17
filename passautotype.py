@@ -279,6 +279,12 @@ def autotype():
     else:  # username and password
         sequence = "USER\nKEY Tab\nPASS\nKEY Return"
 
+    # make sure, the same window as before has the focus
+    window_id2 = run_piped(["xdotool", "getactivewindow"])
+    if window_id2 != window_id:
+        print "active window changed. Aborting."
+        return
+
     for line in sequence.split("\n"):
         if line == "USER":
             subprocess.call(["xdotool", "type",
