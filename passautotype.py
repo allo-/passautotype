@@ -26,6 +26,8 @@ from glob import glob1
 ZENITY = True
 WAIT_TIME = 0.3  # time to wait before starting to type
 
+PASSWORD_STORE_DIR = os.environ.get("PASSWORD_STORE_DIR") or os.environ["HOME"] + "/.password-store"
+
 
 HELP_TEXT = """
 Usage:
@@ -241,7 +243,7 @@ def choose_entry(choices):
 
 
 def autotype():
-    autotype_dir = os.environ["HOME"] + "/.password-store/autotype"
+    autotype_dir = PASSWORD_STORE_DIR + "/autotype"
     window_id = run_piped(["xdotool", "getactivewindow"])
     window_name = run_piped(["xdotool", "getwindowname", window_id])
     autotype_titles = [title for title in glob1(autotype_dir, "*")
@@ -303,8 +305,8 @@ def autotype():
             sleep(delay)
 
 def symlink(password_file, autotype_dir):
-    password_path = os.environ["HOME"] + "/.password-store/" + password_file + ".gpg"
-    autotype_path = os.environ["HOME"] + "/.password-store/autotype/" + autotype_dir
+    password_path = PASSWORD_STORE_DIR + "/" + password_file + ".gpg"
+    autotype_path = PASSWORD_STORE_DIR + "/autotype/" + autotype_dir
     if not os.path.isfile(password_path):
         print 'Password "{0}" does not exist'.format(password_file)
         sys.exit(1)
@@ -322,7 +324,7 @@ def symlink(password_file, autotype_dir):
         os.makedirs(autotype_path)
     depth = len(autotype_dir.split("/"))
     os.symlink("../" * ( depth + 1) + password_file + ".gpg", autotype_path + "/password.gpg")
-    if os.path.lexists(os.environ["HOME"] + "/.password-store/.git"):
+    if os.path.lexists(PASSWORD_STORE_DIR + "/.git"):
         subprocess.call(["pass", "git", "add", autotype_path + "/password.gpg"])
         subprocess.call(["pass", "git", "commit", "-m",
             "Add autotype symlink for {name} -> autotype/{autotype}/password to store.".format(name=password_file, autotype=autotype_dir),
